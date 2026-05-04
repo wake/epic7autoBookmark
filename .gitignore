@@ -23,3 +23,5 @@ stats.json
 /resized-*.png
 /shop-*.png
 /test-step1-*.png
+/pause.flag
+/pause-*.png

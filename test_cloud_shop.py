@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 import asyncio
 import json
+import os
 import sys
 import time
 from playwright.async_api import async_playwright
@@ -24,6 +25,8 @@ DELAY_BEFORE_SCREENSHOT = 1.0  # 操作後等多久再截圖
 DELAY_BEFORE_ACTION = 1.0     # 截圖後等多久再操作
 MAX_CONSECUTIVE_ERRORS = 3    # 連續失敗幾次就退出
 STATS_FILE = "stats.json"
+PAUSE_FLAG = "pause.flag"     # 對話框未出現時建立此檔，外部刪除後繼續
+PAUSE_POLL_SECONDS = 2        # 等待解除暫停的輪詢間隔
 
 DEVICE_ID = "4713105"
 LDCLOUD_URL = f"https://www.ldcloud.net/web/webRtcNew?deviceId={DEVICE_ID}&type=my"
@@ -214,6 +217,50 @@ def find_bookmarks(screenshot):
     return found
 
 
+# === 暫停機制 ===
+
+async def pause_for_intervention(page, btype, stats):
+    """寫入 pause.flag 並截圖，等待外部刪除 flag 後繼續。
+
+    使用情境：對話框未出現等異常狀態 — 由 Claude 看畫面、操作 LDCloud 恢復後
+    刪除 pause.flag 解除暫停。
+    """
+    snapshot_path = f"pause-r{stats.refresh_count}-{btype}-{int(time.time())}.png"
+    try:
+        box = await (await page.query_selector(CANVAS_SEL)).bounding_box()
+        clip_x = max(0, box["x"])
+        clip_w = box["width"] + min(0, box["x"])
+        await page.screenshot(
+            path=snapshot_path,
+            clip={"x": clip_x, "y": box["y"], "width": clip_w, "height": box["height"]},
+            type="png",
+        )
+    except Exception as e:
+        snapshot_path = f"(截圖失敗: {e})"
+
+    info = (
+        f"round={stats.refresh_count}\n"
+        f"btype={btype}\n"
+        f"reason=對話框未出現\n"
+        f"snapshot={snapshot_path}\n"
+        f"timestamp={time.time()}\n"
+        f"\n"
+        f"刪除此檔以繼續執行（程式會 skip 此書籤、繼續本輪餘下流程）。\n"
+    )
+    with open(PAUSE_FLAG, "w", encoding="utf-8") as f:
+        f.write(info)
+    print(f"  [PAUSE] 等待介入（snapshot={snapshot_path}）")
+    print(f"  [PAUSE] 刪除 {PAUSE_FLAG} 以繼續")
+
+    waited = 0
+    while os.path.exists(PAUSE_FLAG):
+        await asyncio.sleep(PAUSE_POLL_SECONDS)
+        waited += PAUSE_POLL_SECONDS
+        if waited % 60 == 0:
+            print(f"  [PAUSE] 已等待 {waited}s …")
+    print(f"  [RESUME] 已解除暫停（等待 {waited}s）")
+
+
 # === 購買流程 ===
 
 async def buy_bookmark(page, canvas, bookmark_pos, offset, btype, stats):
@@ -249,6 +296,7 @@ async def buy_bookmark(page, canvas, bookmark_pos, offset, btype, stats):
     else:
         stats.errors.append(f"round {stats.refresh_count}: 對話框未出現 ({btype})")
         print(f"  [購買失敗] 對話框未出現")
+        await pause_for_intervention(page, btype, stats)
         return False
 
 
