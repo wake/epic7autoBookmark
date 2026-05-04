@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Playwright MCP cache
+.playwright-mcp/
+
+# 執行階段產物
+*.log
+report.txt
+stats.json
+
+# 開發過程截圖（限根目錄）
+/after-*.png
+/canvas-*.png
+/crop_*.png
+/current-shop*.png
+/ldcloud-*.png
+/mystic-*.png
+/pre-run-check.png
+/refresh-*.png
+/resized-*.png
+/shop-*.png
+/test-step1-*.png
