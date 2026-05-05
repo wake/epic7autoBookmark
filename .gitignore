@@ -6,22 +6,23 @@ __pycache__/
 # Playwright MCP cache
 .playwright-mcp/
 
+# Claude Code workspace
+.claude/
+
 # 執行階段產物
 *.log
 report.txt
 stats.json
 
-# 開發過程截圖（限根目錄）
-/after-*.png
-/canvas-*.png
-/crop_*.png
-/current-shop*.png
-/ldcloud-*.png
-/mystic-*.png
-/pre-run-check.png
-/refresh-*.png
-/resized-*.png
-/shop-*.png
-/test-step1-*.png
+# 根目錄的開發 / 探索 / 診斷截圖
+/*.png
+
+# PAUSE 機制產物
 /pause.flag
-/pause-*.png
+/fp-analysis/
+
+# 團戰紀錄抓取輸出
+/guild-records/
+
+# 刷店歷史紀錄（含 PAUSE 截圖，內容大）
+/docs/run-history/
